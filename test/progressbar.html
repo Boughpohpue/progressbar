@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>TESTING: PROGRESSBAR</title>
+		<link rel="stylesheet" href="../content/progressbar.css" />
+		<script src="../content/progressbar.js"></script>
+	</head>
+	<body>
+		<div id="clock_div" style="margin: 21px">CLOCK:<br/></div>
+		<br/><br/>
+		<div id="timer_div" style="margin: 21px">TIMER:<br/></div>
+	
+		<script>
+			const now = new Date();
+			
+			const clock_div = document.getElementById("clock_div");
+			const timer_div = document.getElementById("timer_div");
+
+			const pbar_hr = new ProgressBar("pb_hr", 0, 23);
+			pbar_hr.smallStep = 1;
+			pbar_hr.looped = true;
+			pbar_hr.displayMode = 1;
+			pbar_hr.setValue(now.getHours());
+			pbar_hr.appendElement(clock_div);
+			
+			const pbar_min = new ProgressBar("pb_min", 0, 59);
+			pbar_min.smallStep = 1;
+			pbar_min.looped = true;
+			pbar_min.displayMode = 1;
+			pbar_min.setValue(now.getMinutes());
+			pbar_min.appendElement(clock_div);
+			pbar_min.addOnNewIterationListener(() => { pbar_hr.tick(); });
+			
+			const pbar_sec = new ProgressBar("pb_sec", 0, 59);
+			pbar_sec.smallStep = 1;
+			pbar_sec.looped = true;
+			pbar_sec.displayMode = 1;
+			pbar_sec.setValue(now.getSeconds());
+			pbar_sec.appendElement(clock_div);
+			pbar_sec.addOnNewIterationListener(() => { pbar_min.tick(); });
+			setInterval(() => { pbar_sec.tick(); }, 1000);
+			
+			const pbar_timer = new ProgressBar("pb_timer", 60, 0);
+			pbar_timer.smallStep = 0.05;
+			pbar_timer.displayMode = 1;
+			pbar_timer.showRange = true;
+			pbar_timer.showBoxed = true;
+			pbar_timer.setValue(60);
+			pbar_timer.appendElement(timer_div);
+			setInterval(() => { pbar_timer.tick(); }, 50);
+			
+			const pbhr = document.getElementById("pb_hr");
+			if (pbhr) { console.log(pbhr.value); }
+		</script>
+	</body>
+</html>
