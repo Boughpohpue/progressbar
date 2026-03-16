@@ -4,54 +4,89 @@
         <meta charset="UTF-8">
         <title>TESTING: PROGRESSBAR</title>
 		<link rel="stylesheet" href="../content/progressbar.css" />
+    <script src="https://boughpohpue.github.io/enum.js/content/enum.js?1"></script>
+    <script src="https://boughpohpue.github.io/colorjs/compiled/colorjs.js?123"></script>
 		<script src="../content/progressbar.js"></script>
 	</head>
 	<body>
+    <div id="click_div" style="margin: 21px"><button id="click_button" onclick="button_click();">CLICK ME</button></div>
+		<br/><br/>
+    <div id="value_div" style="margin: 21px">SIMPLE:<br/></div>
+		<br/><br/>
 		<div id="clock_div" style="margin: 21px">CLOCK:<br/></div>
 		<br/><br/>
 		<div id="timer_div" style="margin: 21px">TIMER:<br/></div>
-	
+
 		<script>
 			const now = new Date();
-			
+
+      const click_div = document.getElementById("click_div");
+      const value_div = document.getElementById("value_div");
 			const clock_div = document.getElementById("clock_div");
 			const timer_div = document.getElementById("timer_div");
 
+      const pbar_click = new ProgressBar("pb_click", 0, 12);
+			pbar_click.tickSize = 1;
+			pbar_click.displayMode = DisplayMode.VALUE;
+      pbar_click.showRange = true;
+			pbar_click.appendElement(click_div);
+      pbar_click.addOnCompletedListener(() => {
+        document.getElementById("click_button").innerText = "ENOUGH!";
+        document.getElementById("click_button").setAttribute("disabled", "disabled");
+      });
+      function button_click() {
+        pbar_click.tick();
+      }
+
+      const pbar_val = new ProgressBar("pb_val", 12, 144);
+			pbar_val.tickSize = 1;
+			pbar_val.displayMode = DisplayMode.COMBINED;
+      pbar_val.showRange = true;
+			pbar_val.appendElement(value_div);
+			pbar_val.addOnCompletedListener(() => { clearInterval(valueInterval); });
+			const valueInterval = setInterval(() => { pbar_val.tick(); }, 69);
+
 			const pbar_hr = new ProgressBar("pb_hr", 0, 23);
-			pbar_hr.smallStep = 1;
+			pbar_hr.tickSize = 1;
 			pbar_hr.looped = true;
-			pbar_hr.displayMode = 1;
+      pbar_hr.minColor = NamedColor.DarkViolet;
+      pbar_hr.maxColor = NamedColor.Aquamarine;
+			pbar_hr.displayMode = DisplayMode.VALUE;
 			pbar_hr.setValue(now.getHours());
 			pbar_hr.appendElement(clock_div);
-			
+
 			const pbar_min = new ProgressBar("pb_min", 0, 59);
-			pbar_min.smallStep = 1;
+			pbar_min.tickSize = 1;
 			pbar_min.looped = true;
-			pbar_min.displayMode = 1;
+      pbar_min.minColor = NamedColor.DarkOrange;
+      pbar_min.maxColor = NamedColor.Aqua;
+			pbar_min.displayMode = DisplayMode.VALUE;
 			pbar_min.setValue(now.getMinutes());
 			pbar_min.appendElement(clock_div);
 			pbar_min.addOnNewIterationListener(() => { pbar_hr.tick(); });
-			
+
 			const pbar_sec = new ProgressBar("pb_sec", 0, 59);
-			pbar_sec.smallStep = 1;
+			pbar_sec.tickSize = 1;
 			pbar_sec.looped = true;
-			pbar_sec.displayMode = 1;
+			pbar_sec.displayMode = DisplayMode.VALUE;
 			pbar_sec.setValue(now.getSeconds());
 			pbar_sec.appendElement(clock_div);
 			pbar_sec.addOnNewIterationListener(() => { pbar_min.tick(); });
-			setInterval(() => { pbar_sec.tick(); }, 1000);
-			
-			const pbar_timer = new ProgressBar("pb_timer", 60, 0);
-			pbar_timer.smallStep = 0.05;
-			pbar_timer.displayMode = 1;
-			pbar_timer.showRange = true;
-			pbar_timer.showBoxed = true;
-			pbar_timer.setValue(60);
+			const clockInterval = setInterval(() => { pbar_sec.tick(); }, 1000);
+
+      let timeout = 10;
+			const pbar_timer = new ProgressBar("pb_timer", 10, 0);
+			pbar_timer.tickSize = 0.05;
+      pbar_timer.showBoxed = true;
+      pbar_timer.showRange = true;
+			pbar_timer.displayMode = DisplayMode.COMBINED;
+			pbar_timer.setValue(timeout);
 			pbar_timer.appendElement(timer_div);
-			setInterval(() => { pbar_timer.tick(); }, 50);
-			
-			const pbhr = document.getElementById("pb_hr");
-			if (pbhr) { console.log(pbhr.value); }
+      pbar_timer.addOnCompletedListener(() => { if (--timeout == 0) clearInterval(timerInterval); else document.getElementById("pb_timer").value = `${timeout}`; });
+			const timerInterval = setInterval(() => { pbar_timer.tick(); }, 50);
+
+
+
 		</script>
 	</body>
 </html>

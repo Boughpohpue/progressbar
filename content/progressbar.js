@@ -1,27 +1,9 @@
-class ColorHelper {
-	static decToHex(dec) {
-		return dec.toString(16).padStart(2, "0");
-	}	
-	static hexToDec(hex) {
-		return parseInt(hex, 16);
-	}	
-	static toHexColor(r, g, b) {
-		return `#${ColorHelper.decToHex(r)}${ColorHelper.decToHex(g)}${ColorHelper.decToHex(b)}`;
-	}
-	static toDecRGB(hex) {
-		hex = hex.startsWith('#') ? hex.substring(1) : hex;
-		let rgb = [];
-		for (var x = 0; x <= hex.length - 1; x += 2)
-			rgb.push(parseInt(hex.substring(x, x + 2), 16));
-		return rgb;
-	}
-	static getChannelValue(percent, min = 0, max = 255) {
-		min = Math.max(min, 0);
-		max = Math.min(max, 255);
-		return min < max 
-			? min + Math.round(Math.floor((max - min) * percent))
-			: min - Math.round(Math.floor((min - max) * percent));
-	}
+class DisplayMode extends Enum {
+	static NONE = new DisplayMode();
+  static VALUE = new DisplayMode();
+  static PERCENT = new DisplayMode();
+  static COMBINED = new DisplayMode();
+  static { this.seal(); }
 }
 
 class ProgressBar {
@@ -29,26 +11,29 @@ class ProgressBar {
 	#value = 0;
 	#minVal = 0;
 	#maxVal = 100;
-	#smallStep = 1;
-	#largeStep = 10;
-	#displayMode = 0; // 0 - none, 1 - value, 2 - percent, 3 - value and percent
+	#tickSize = 1;
 	#looped = false;
 	#reverse = false;
-	#showRange = false;
 	#showBoxed = false;
+	#showRange = false;
 	#minColor = "#ffff00";
 	#maxColor = "#00ff00";
+
+	#displayMode = DisplayMode.NONE;
+
 	#onCompleteListeners = new Set();
 	#onIterationListeners = new Set();
-	
+
 	#containerElement = null;
 	#progressBarElement = null;
 	#progressInfoElement = null;
 	#progressInputElement = null;
-	#minMaxValuesElement = null;
+	#rangeValuesElement = null;
 	#minValueElement = null;
 	#maxValueElement = null;
-	
+
+	#inputValueObserver = null;
+
 	constructor(id, minVal = 0, maxVal = 100) {
 		if (minVal === maxVal) throw new Error("Min and Max must not be equals!");
 		this.#id = id;
@@ -56,8 +41,7 @@ class ProgressBar {
 		this.#minVal = Math.min(minVal, maxVal);
 		this.#maxVal = Math.max(minVal, maxVal);
 		this.#value = this.#minVal;
-		this.#largeStep = (this.#maxVal - this.#minVal) * 0.1;
-		this.#smallStep = this.#largeStep * 0.1;
+		this.#tickSize = (this.#maxVal - this.#minVal) * 0.01;
 	}
 
 	addOnCompletedListener(listener) {
@@ -71,211 +55,200 @@ class ProgressBar {
 		this.#onIterationListeners.add(listener);
 	}
 
+
 	get reverse() { return this.#reverse; }
 	set reverse(val) { this.#reverse = val == true; }
 
 	get looped() { return this.#looped; }
 	set looped(val) { this.#looped = val == true; }
 
+	get showBoxed() { return this.#showBoxed; }
+	set showBoxed(val) {
+		if (this.#showBoxed == val) return;
+		this.#showBoxed = val == true;
+		this.#updateBoxedDisplay();
+	}
+
 	get showRange() { return this.#showRange; }
-	set showRange(val) { 
+	set showRange(val) {
 		if (this.#showRange == val) return;
 		this.#showRange = val == true;
 		this.#updateMinMaxDisplay();
 	}
 
-	get showBoxed() { return this.#showBoxed; }
-	set showBoxed(val) { 
-		if (this.#showBoxed == val) return;
-		this.#showBoxed = val == true;
-		this.#updateBoxedDisplay();
-	}
-	
-	get displayMode() { return this.#displayMode; }
-	set displayMode(val) { this.#displayMode = val; }
-	
 	get value() { return this.#value; }
 	set value(val) { this.setValue(val); }
 
-	get minColorHex() { return this.#minColor; }
-	set minColorHex(val) { this.#minColor = val; }	
-	get maxColorHex() { return this.#maxColor; }
-	set maxColorHex(val) { this.#maxColor = val; }
-	
+	get displayMode() { return this.#displayMode; }
+	set displayMode(val) { this.#displayMode = val; }
+
+	get minColor() { return this.#minColor; }
+	set minColor(val) { this.#minColor = val instanceof NamedColor ? val.value.hexRgb : new Color(val).hexRgb; }
+
+	get maxColor() { return this.#maxColor; }
+	set maxColor(val) { this.#maxColor = val instanceof NamedColor ? val.value.hexRgb : new Color(val).hexRgb; }
+
 	get min() { return this.#minVal; }
-	set min(val) { 
+	set min(val) {
 		if (val == this.min) return;
 		if (val >= this.max) return;
 		if (this.value < val) this.setValue(val);
 		this.#minVal = val;
 		this.#updateMinMax();
 	}
-	
+
 	get max() { return this.#maxVal; }
-	set max(val) { 
+	set max(val) {
 		if (val == this.max) return;
 		if (val <= this.min) return;
 		if (this.value > val) this.setValue(val);
 		this.#maxVal = val;
 		this.#updateMinMax();
-	}	
-	
+	}
+
 	get isMin() { return this.value == this.min; }
-	get isMax() { return this.value == this.max; }	
+	get isMax() { return this.value == this.max; }
 	get range() { return this.max - this.min; }
 	get progress() { return (this.value - this.min) / this.range; }
 	get percent() { return Math.round(this.progress * 100); }
-	
-	get largeStep() { return this.#largeStep; }
-	set largeStep(val) { 
+
+	get tickSize() { return this.#tickSize; }
+	set tickSize(val) {
 		if (val == 0) return;
 		if (val > this.range) return;
-		this.#largeStep = val;
+		this.#tickSize = val;
 	}
-	
-	get smallStep() { return this.#smallStep; }
-	set smallStep(val) { 
-		if (val == 0) return;
-		if (val > this.range) return;
-		this.#smallStep = val;
-	}		
-		
+
 	setValue(val) {
 		if (val == this.value) return;
 		else if (val < this.min) {
-			if (!this.looped) return;
-			val = this.max;
+			val = this.looped ? this.max : this.min;
 		}
 		else if (val > this.max) {
-			if (!this.looped) return;
-			val = this.min;
+			val = this.looped ? this.min : this.max;
 		}
-		
+
 		this.#value = val;
 		this.#updateValue();
 		this.#invokeListeners();
 	}
-	
-	increase() { this.setValue(this.value + this.smallStep); }
-	increaseLarge() { this.setValue(this.value + this.largeStep); }
-	
-	decrease() { this.setValue(this.value - this.smallStep); }
-	decreaseLarge() { this.setValue(this.value - this.largeStep); }
-	
-	tick() { 
-		if (this.reverse == true) this.decrease();
-		else this.increase();
+
+	increase() { this.setValue(this.value + this.tickSize); }
+	decrease() { this.setValue(this.value - this.tickSize); }
+	tick() { return this.reverse ? this.decrease() : this.increase(); }
+
+	discard() {
+		clearInterval(this.#inputValueObserver);
 	}
-	
+
 	appendElement(targetElement = undefined) {
 		if (this.#containerElement) return;
-		
-		const targetEl = (targetElement ?? document.body);
-		
+
 		const containerEl = document.createElement('div');
 		containerEl.id = `${this.#id}_wrapper`;
 		containerEl.className = "progress-bar";
-		if (this.#showBoxed)
-			containerEl.classList.add("boxed");
-		
-		
+		if (this.#showBoxed) containerEl.classList.add("boxed");
+
+		const progressTrackEl = document.createElement('div');
+		progressTrackEl.className = "track";
+
 		const progressInputEl = document.createElement('input');
 		progressInputEl.id = `${this.#id}`;
 		progressInputEl.type = "hidden";
 		progressInputEl.value = `${this.#value}`;
-		
+		this.#progressInputElement = progressTrackEl.appendChild(progressInputEl);
+
 		const progressBarEl = document.createElement('div');
 		progressBarEl.className = "progress";
 		progressBarEl.style.cssText = this.#getProgressStyle();
-		
+		this.#progressBarElement = progressTrackEl.appendChild(progressBarEl);
+
 		const progressValueEl = document.createElement('div');
 		progressValueEl.className = "info";
-		progressValueEl.innerText = this.#getDisplayText();	
-		
-		const progressTrackEl = document.createElement('div');
-		progressTrackEl.className = "track";
-		
-		this.#progressInputElement = progressTrackEl.appendChild(progressInputEl);
-		this.#progressBarElement = progressTrackEl.appendChild(progressBarEl);
+		progressValueEl.innerText = this.#getDisplayText();
 		this.#progressInfoElement = progressTrackEl.appendChild(progressValueEl);
-		
-		
+
+		const rangeValuesEl = document.createElement('div');
+		rangeValuesEl.className = "range";
+		rangeValuesEl.style.cssText = this.#showRange ? "display: flex" : "display: none";
+
 		const minValEl = document.createElement('span');
 		minValEl.innerText = `${this.min}`;
+		this.#minValueElement = rangeValuesEl.appendChild(minValEl);
+
 		const maxValEl = document.createElement('span');
 		maxValEl.innerText = `${this.max}`;
+		this.#maxValueElement = rangeValuesEl.appendChild(maxValEl);
 
-		const minMaxValuesEl = document.createElement('div');
-		minMaxValuesEl.className = "values";
-		minMaxValuesEl.style.cssText = this.#showRange ? "display: flex" : "display: none";
-		
-		this.#minValueElement = minMaxValuesEl.appendChild(minValEl);
-		this.#maxValueElement = minMaxValuesEl.appendChild(maxValEl);
-		
-		
 		containerEl.appendChild(progressTrackEl);
-		this.#minMaxValuesElement = containerEl.appendChild(minMaxValuesEl);
+		this.#rangeValuesElement = containerEl.appendChild(rangeValuesEl);
+
+		const targetEl = (targetElement ?? document.body);
 		this.#containerElement = targetEl.appendChild(containerEl);
-	
+
+		this.#inputValueObserver = setInterval(() => { this.#checkInputValue(); }, 69);
+
 		return this.#containerElement;
 	}
-	
-	
+
+	#checkInputValue() {
+		const inputValue = parseFloat(this.#progressInputElement.value);
+		if (inputValue != this.value) {
+			this.setValue(inputValue);
+		}
+	}
+
 	#updateValue() {
 		if (!this.#containerElement) return;
 		this.#progressInputElement.value = `${this.#value}`;
 		this.#progressBarElement.style.cssText = this.#getProgressStyle();
 		this.#progressInfoElement.innerText = this.#getDisplayText();
 	}
-	
+
 	#updateMinMax() {
 		if (!this.#containerElement) return;
 		this.#minValueElement.innerText = `${this.min}`;
 		this.#maxValueElement.innerText = `${this.max}`;
 	}
-	
+
 	#updateMinMaxDisplay() {
 		if (!this.#containerElement) return;
-		this.#minMaxValuesElement.style.display = this.#showRange ? "flex" : "none";
+		this.#rangeValuesElement.style.display = this.#showRange ? "flex" : "none";
 	}
 
 	#updateBoxedDisplay() {
 		if (!this.#containerElement) return;
 		this.#containerElement.classList.toggle("boxed");
 	}
-	
+
 	#getValueText() {
-		return this.#smallStep % 1 == 0 ? `${this.value}` : `${this.value.toFixed(2)}`;
+		return this.#tickSize % 1 == 0 ? `${this.value}` : `${this.value.toFixed(2)}`;
 	}
-	
+
 	#getDisplayText() {
 		switch (this.#displayMode) {
-			case 1:
+			case DisplayMode.VALUE:
 				return this.#getValueText();
-			case 2:
+			case DisplayMode.PERCENT:
 				return `${this.percent}%`;
-			case 3:
+			case DisplayMode.COMBINED:
 				return `${this.#getValueText()} (${this.percent}%)`;
-			case 0:
+			case DisplayMode.NONE:
 			default:
 				return '';
 		}
 	}
-	
+
 	#getProgressStyle() {
-		const minRGB = ColorHelper.toDecRGB(this.#minColor);
-		const maxRGB = ColorHelper.toDecRGB(this.#maxColor);
-		const r = ColorHelper.getChannelValue(this.progress, minRGB[0], maxRGB[0]);
-		const g = ColorHelper.getChannelValue(this.progress, minRGB[1], maxRGB[1]);
-		const b = ColorHelper.getChannelValue(this.progress, minRGB[2], maxRGB[2]);
-		
-		var bg_color = `background: ${this.#minColor};`;
-		var bg_gradient = `background: linear-gradient(90deg,rgba(${minRGB[0]}, ${minRGB[1]}, ${minRGB[2]}, 1) 0%, rgba(${r}, ${g}, ${b}, 1) 100%);`;
+		const minRGB = ColorHelper.hex2rgb(this.#minColor);
+		const curRGB = ColorHelper.calculateColorTransitRgb(this.#minColor, this.#maxColor, this.progress);
 		var width = `width: ${this.percent}%;`;
-		
+		var bg_color = `background: ${this.#minColor};`;
+		var bg_gradient = `background: linear-gradient(90deg,rgba(${minRGB[0]}, ${minRGB[1]}, ${minRGB[2]}, 1) 0%, rgba(${curRGB[0]}, ${curRGB[1]}, ${curRGB[2]}, 1) 100%);`;
+
 		return `${width} ${bg_color} ${bg_gradient}`;
 	}
-	
+
 	#invokeListeners() {
 		if ((this.reverse == true && this.isMin) || (this.reverse == false && this.isMax)) {
 			for (const fn of this.#onCompleteListeners) fn();
