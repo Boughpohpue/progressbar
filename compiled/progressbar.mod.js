@@ -1,17 +1,6 @@
-(() => {
-  try {
-      var test = {} instanceof Enum;
-  }
-  catch {
-    console.warn("Required type missing: Enum. Please include 'https://boughpohpue.github.io/artifactory/js/enum/1.0.1/enum.js'.");
-  }
-  try {
-      var test = ColorHelper.resolveColor(NamedColor.White);
-  }
-  catch {
-    console.warn("Required library missing: ColorJS. Please include 'https://boughpohpue.github.io/artifactory/js/color/1.0.1/colorjs.js'.");
-  }
-})();
+import Enum from 'https://boughpohpue.github.io/artifactory/js/enum/1.0.1/enum.mod.js';
+import { ColorHelper, Color, NamedColor } from 'https://boughpohpue.github.io/artifactory/js/color/1.0.1/colorjs.mod.js';
+
 
 class ValueUpdateResult extends Enum {
   static NONE = new ValueUpdateResult();
@@ -22,7 +11,7 @@ class ValueUpdateResult extends Enum {
   static { this.seal(); }
 }
 
-class ValueDisplayMode extends Enum {
+export class ValueDisplayMode extends Enum {
 	static NONE = new ValueDisplayMode();
   static VALUE = new ValueDisplayMode();
   static PERCENT = new ValueDisplayMode();
@@ -30,7 +19,7 @@ class ValueDisplayMode extends Enum {
   static { this.seal(); }
 }
 
-class PbOptions {
+export class PbOptions {
 	constructor() {
     this.elementId = undefined;
     this.elementWidth = undefined;
@@ -352,7 +341,7 @@ class ProgressBarElement {
 	}
 }
 
-class ProgressBar {
+export class ProgressBar {
   #progressValue = undefined;
   #progressBarElement = undefined;
   #inputValueObserver = undefined;
@@ -425,3 +414,5 @@ class ProgressBar {
 		    for (const fn of this.#onCompletedListeners) fn();
 	}
 }
+
+export default ProgressBar;

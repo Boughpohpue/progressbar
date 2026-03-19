@@ -2,91 +2,208 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>TESTING: PROGRESSBAR</title>
-		<link rel="stylesheet" href="../content/progressbar.css" />
-    <script src="https://boughpohpue.github.io/enum.js/content/enum.js?1"></script>
-    <script src="https://boughpohpue.github.io/colorjs/compiled/colorjs.js?123"></script>
-		<script src="../content/progressbar.js"></script>
+        <title>TESTING: PROGRESSBAR CONTROL</title>
+		<link rel="stylesheet" href="../compiled/progressbar.css" />
+    <script src="https://boughpohpue.github.io/artifactory/js/enum/1.0.1/enum.js"></script>
+    <script src="https://boughpohpue.github.io/artifactory/js/color/1.0.1/colorjs.js"></script>
+		<script src="../compiled/progressbar.js"></script>
 	</head>
 	<body>
-    <div id="click_div" style="margin: 21px"><button id="click_button" onclick="button_click();">CLICK ME</button></div>
-		<br/><br/>
-    <div id="value_div" style="margin: 21px">SIMPLE:<br/></div>
-		<br/><br/>
-		<div id="clock_div" style="margin: 21px">CLOCK:<br/></div>
-		<br/><br/>
-		<div id="timer_div" style="margin: 21px">TIMER:<br/></div>
+    <div style="margin: 21px">
+      MANUAL:<br/>
+      <div id="range_div"></div>
+      <span>Change value via ProgressBar.value: </span><input id="range_input" type="number" min="0" max="12" value="6" style="padding: 2px;" /><br/>
+      <span>Change value via getElementById(): </span><input id="range_input2" type="number" min="0" max="12" value="6" style="padding: 2px;" />
+      <br/>
+    </div>
+    <br/>
+
+    <div id="loop_div" style="margin: 21px">
+      LOOPED, ITERATION: <span id="iter_count">1</span><br/>
+    </div>
+    <br/>
+
+    <div style="margin: 21px">
+      CLOCK: <span id="time_span"></span><br/>
+      <div id="clock_div" style="display: flex; flex-direction: column; align-items: left; "></div>
+    </div>
+    <br/>
+
+		<div style="margin: 21px">
+      TIMER:<br/>
+      <div id="timer_div"></div>
+      <button id="start_button" onclick="startTimer();">START</button>
+      <button id="pause_button" onclick="pauseTimer();" disabled>PAUSE</button>
+      <button id="reset_button" onclick="resetTimer();" disabled>RESET</button>
+      <br/><br/><span>Get value from ProgressBar.value: </span><span id="timer_value_pb"></span>
+      <br/><span>Get value from getElementById(): </span><span id="timer_value_el"></span>
+    </div>
+    <br/>
+
+    <div id="destroy_div" style="margin: 21px">
+      SELF-DESTROY AFTER COMPLETED:<br/>
+    </div>
+    <br/>
 
 		<script>
-			const now = new Date();
+    const range_input = document.getElementById("range_input");
+    const range_input2 = document.getElementById("range_input2");
+    const pbar_numrng = new ProgressBar(
+      document.getElementById("range_div"),
+      PbOptions.create()
+        .withId("pb_numrng")
+        .boxed()
+        .withRuler()
+        .withWidth(450)
+        .withMin(parseFloat(range_input.min))
+        .withMax(parseFloat(range_input.max))
+        .withValue(parseFloat(range_input.value))
+        .withTickSize(1)
+        .withDisplayMode(ValueDisplayMode.VALUE)
+        .withOnChanged(() => {
+          let value = pbar_numrng.value;
+          if (parseFloat(range_input.value) !== value) range_input.value = value;
+          if (parseFloat(range_input2.value) !== value) range_input2.value = value;
+        })
+        .sealed());
+    range_input.addEventListener("change", () => { pbar_numrng.setValue(parseFloat(range_input.value)); });
+    range_input2.addEventListener("change", () => { document.getElementById("pb_numrng").value = range_input2.value; });
 
-      const click_div = document.getElementById("click_div");
-      const value_div = document.getElementById("value_div");
-			const clock_div = document.getElementById("clock_div");
-			const timer_div = document.getElementById("timer_div");
+    const pbar_loop = new ProgressBar(
+      document.getElementById("loop_div"),
+      PbOptions.create()
+        .withId("pb_loop")
+        .looped()
+        .withMin(0)
+        .withMax(33)
+        .withTickSize(1)
+        .withMinColor(NamedColor.Cyan)
+        .withMaxColor(NamedColor.Magenta)
+        .withDisplayMode(ValueDisplayMode.PERCENT)
+        .withOnIteration(() => {
+          const ice = document.getElementById("iter_count");
+          const iters = parseInt(ice.innerText) + 1;
+          ice.innerText = iters;
+          if (iters === 6) clearInterval(loopInterval);
+        })
+        .sealed());
+    const loopInterval = setInterval(() => { pbar_loop.tick(); }, 69);
 
-      const pbar_click = new ProgressBar("pb_click", 0, 12);
-			pbar_click.tickSize = 1;
-			pbar_click.displayMode = DisplayMode.VALUE;
-      pbar_click.showRange = true;
-			pbar_click.appendElement(click_div);
-      pbar_click.addOnCompletedListener(() => {
-        document.getElementById("click_button").innerText = "ENOUGH!";
-        document.getElementById("click_button").setAttribute("disabled", "disabled");
-      });
-      function button_click() {
-        pbar_click.tick();
-      }
+    const pbar_clock_hr = new ProgressBar(
+      document.getElementById("clock_div"),
+      PbOptions.create()
+        .withId("pb_clock_hr")
+        .withWidth(115)
+        .withHeight(20)
+        .looped()
+        .withMin(0)
+        .withMax(23)
+        .withTickSize(1)
+        .withValue(new Date().getHours())
+        .withTrackBgColor(NamedColor.SteelBlue)
+        .withDisplayMode(ValueDisplayMode.VALUE)
+        .sealed());
+    const pbar_clock_min = new ProgressBar(
+      document.getElementById("clock_div"),
+      PbOptions.create()
+        .withId("pb_clock_min")
+        .withWidth(115)
+        .withHeight(20)
+        .looped()
+        .withMin(0)
+        .withMax(59)
+        .withTickSize(1)
+        .withValue(new Date().getMinutes())
+        .withDisplayMode(ValueDisplayMode.VALUE)
+        .withTrackBgColor(NamedColor.SteelBlue)
+        .withOnIteration(() => { pbar_clock_hr.tick(); })
+        .sealed());
+    const pbar_clock_sec = new ProgressBar(
+      document.getElementById("clock_div"),
+      PbOptions.create()
+        .withId("pb_clock_sec")
+        .withWidth(115)
+        .withHeight(20)
+        .looped()
+        .withMin(0)
+        .withMax(59)
+        .withTickSize(1)
+        .withValue(new Date().getSeconds())
+        .withDisplayMode(ValueDisplayMode.VALUE)
+        .withTrackBgColor(NamedColor.SteelBlue)
+        .withOnIteration(() => { pbar_clock_min.tick(); })
+        .sealed());
+    const clockInterval = setInterval(onClockInterval, 1000);
 
-      const pbar_val = new ProgressBar("pb_val", 12, 144);
-			pbar_val.tickSize = 1;
-			pbar_val.displayMode = DisplayMode.COMBINED;
-      pbar_val.showRange = true;
-			pbar_val.appendElement(value_div);
-			pbar_val.addOnCompletedListener(() => { clearInterval(valueInterval); });
-			const valueInterval = setInterval(() => { pbar_val.tick(); }, 69);
-
-			const pbar_hr = new ProgressBar("pb_hr", 0, 23);
-			pbar_hr.tickSize = 1;
-			pbar_hr.looped = true;
-      pbar_hr.minColor = NamedColor.DarkViolet;
-      pbar_hr.maxColor = NamedColor.Aquamarine;
-			pbar_hr.displayMode = DisplayMode.VALUE;
-			pbar_hr.setValue(now.getHours());
-			pbar_hr.appendElement(clock_div);
-
-			const pbar_min = new ProgressBar("pb_min", 0, 59);
-			pbar_min.tickSize = 1;
-			pbar_min.looped = true;
-      pbar_min.minColor = NamedColor.DarkOrange;
-      pbar_min.maxColor = NamedColor.Aqua;
-			pbar_min.displayMode = DisplayMode.VALUE;
-			pbar_min.setValue(now.getMinutes());
-			pbar_min.appendElement(clock_div);
-			pbar_min.addOnNewIterationListener(() => { pbar_hr.tick(); });
-
-			const pbar_sec = new ProgressBar("pb_sec", 0, 59);
-			pbar_sec.tickSize = 1;
-			pbar_sec.looped = true;
-			pbar_sec.displayMode = DisplayMode.VALUE;
-			pbar_sec.setValue(now.getSeconds());
-			pbar_sec.appendElement(clock_div);
-			pbar_sec.addOnNewIterationListener(() => { pbar_min.tick(); });
-			const clockInterval = setInterval(() => { pbar_sec.tick(); }, 1000);
-
-      let timeout = 10;
-			const pbar_timer = new ProgressBar("pb_timer", 10, 0);
-			pbar_timer.tickSize = 0.05;
-      pbar_timer.showBoxed = true;
-      pbar_timer.showRange = true;
-			pbar_timer.displayMode = DisplayMode.COMBINED;
-			pbar_timer.setValue(timeout);
-			pbar_timer.appendElement(timer_div);
-      pbar_timer.addOnCompletedListener(() => { if (--timeout == 0) clearInterval(timerInterval); else document.getElementById("pb_timer").value = `${timeout}`; });
-			const timerInterval = setInterval(() => { pbar_timer.tick(); }, 50);
+    function onClockInterval() {
+      pbar_clock_sec.tick();
+      let dt = new Date();
+      document.getElementById("time_span").innerText = `${dt.getHours()}:${dt.getMinutes()}:${dt.getSeconds()}`;
+    }
 
 
+    let timerInterval = undefined;
+		const pbar_timer = new ProgressBar(
+      document.getElementById("timer_div"),
+      PbOptions.create()
+        .withId("pb_timer")
+        .boxed()
+        .withMax(0)
+        .withMin(12)
+        .withTickSize(0.05)
+        .withPrecision(2)
+        .withRuler()
+        .withDisplayMode(ValueDisplayMode.COMBINED)
+        .withOnCompleted(stopTimer)
+        .sealed());
 
+    const startButton = document.getElementById("start_button");
+    const pauseButton = document.getElementById("pause_button");
+    const resetButton = document.getElementById("reset_button");
+    getTimerValue();
+
+    function startTimer() {
+      startButton.setAttribute("disabled", "disabled");
+      pauseButton.removeAttribute("disabled");
+      resetButton.setAttribute("disabled", "disabled");
+      timerInterval = setInterval(() => { pbar_timer.tick(); getTimerValue(); }, 50);
+    }
+    function stopTimer() {
+      clearInterval(timerInterval);
+      pauseButton.setAttribute("disabled", "disabled");
+      resetButton.removeAttribute("disabled");
+    }
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      startButton.removeAttribute("disabled");
+      pauseButton.setAttribute("disabled", "disabled");
+      resetButton.removeAttribute("disabled");
+    }
+    function resetTimer() {
+      pbar_timer.setValue(timeout);
+      startButton.removeAttribute("disabled");
+      resetButton.setAttribute("disabled", "disabled");
+      getTimerValue();
+    }
+    function getTimerValue() {
+      document.getElementById("timer_value_pb").innerText = parseFloat(pbar_timer.value).toFixed(2);
+      document.getElementById("timer_value_el").innerText = document.getElementById("pb_timer").value;
+    }
+
+    const pbar_destroy = new ProgressBar(
+      document.getElementById("destroy_div"),
+      PbOptions.create()
+        .withId("pb_destroy")
+        .withRuler()
+        .withMin(10)
+        .withMax(0)
+        .withTickSize(1)
+        .withMinColor(NamedColor.Red)
+        .withMaxColor(NamedColor.DeepSkyBlue)
+        .withDisplayMode(ValueDisplayMode.VALUE)
+        .withOnCompleted(() => { clearInterval(destroyInterval); setTimeout(() => { pbar_destroy.destroy(true); }, 1269); })
+        .sealed());
+    const destroyInterval = setInterval(() => { pbar_destroy.tick(); }, 1000);
 		</script>
 	</body>
 </html>

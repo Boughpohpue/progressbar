@@ -1,6 +1,8 @@
 :root {
-	--bar_height: 21px;
+	--bar_height: 33px;
+	--bar_min_height: 12px;
 	--bar_width: 369px;
+	--bar_min_width: 69px;
 	--wrapper_padding: 3px;
 }
 
@@ -8,7 +10,7 @@
 	display: flex;
 	flex-direction: column;
 	width: var(--bar_width);
-	min-width: var(--bar_width);
+	min-width: var(--bar_min_width);
 	padding: var(--wrapper_padding);
 	margin: 3px;
 }
@@ -21,7 +23,7 @@
 .progress-bar .track {
 	position: relative;
 	height: var(--bar_height);
-	min-height: var(--bar_height);
+	min-height: var(--bar_min_height);
 	width: calc(100% - calc(var(--wrapper_padding)));
 	min-width: calc(100% - calc(var(--wrapper_padding)));
 	border-radius: 3px;
